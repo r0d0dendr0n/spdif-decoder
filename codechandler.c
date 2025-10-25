@@ -32,7 +32,7 @@ int CodecHandler_loadCodec(CodecHandler * handler, AVFormatContext * formatconte
 		return -1;
 	}
 
-	if(handler->currentCodecID == formatcontext->streams[0]->codec->codec_id){
+	if(handler->currentCodecID == formatcontext->streams[0]->codecpar->codec_id){
 		//Codec already loaded
 		return 0;
 	}
@@ -42,7 +42,7 @@ int CodecHandler_loadCodec(CodecHandler * handler, AVFormatContext * formatconte
 	}
 	handler->currentCodecID = AV_CODEC_ID_NONE;
 
-	handler->codec = avcodec_find_decoder(formatcontext->streams[0]->codec->codec_id);
+	handler->codec = avcodec_find_decoder(formatcontext->streams[0]->codecpar->codec_id);
 	if (!handler->codec) {
 		printf("could not find codec\n");
 		return -1;
@@ -54,14 +54,14 @@ int CodecHandler_loadCodec(CodecHandler * handler, AVFormatContext * formatconte
 		errx(1, "cannot allocate codec");
 	if (avcodec_open2(handler->codecContext, handler->codec, NULL) != 0)
 		errx(1, "cannot open codec");
-	handler->currentCodecID = formatcontext->streams[0]->codec->codec_id;
+	handler->currentCodecID = formatcontext->streams[0]->codecpar->codec_id;
 	return 0;
 }
 
 int CodecHandler_decodeCodec(CodecHandler * h, AVPacket * pkt,
 		uint8_t *outbuffer, uint32_t* bufferfilled){
 	int got_frame;
-	int processed_len = avcodec_decode_audio4(h->codecContext, h->frame, &got_frame, pkt);
+	int processed_len = pkt->size;
 	if (processed_len < 0)
 		errx(1, "cannot decode input");
 
@@ -69,24 +69,24 @@ int CodecHandler_decodeCodec(CodecHandler * h, AVPacket * pkt,
 
 	pkt->data += processed_len;
 	pkt->size -= processed_len;
-	if(h->currentChannelCount != h->codecContext->channels
+	if(h->currentChannelCount != h->codecContext->ch_layout.nb_channels
 			|| h->currentSampleRate != h->codecContext->sample_rate
-			|| h->currentChannelLayout != h->codecContext->channel_layout){
+			|| h->currentChannelLayout != h->codecContext->ch_layout.nb_channels){
 		resample_loadFromCodec(h->swr, h->codecContext);
-		printf("c: %d, s: %d\n",h->codecContext->channels, h->codecContext->sample_rate);
+		printf("c: %d, s: %d\n",h->codecContext->ch_layout.nb_channels, h->codecContext->sample_rate);
 		ret = 1;
 	}
 
 	swr_convert(h->swr, &outbuffer, h->frame->nb_samples, (const uint8_t **)h->frame->data, h->frame->nb_samples);
 	*bufferfilled = av_samples_get_buffer_size(NULL,
-			   h->codecContext->channels,
+			   h->codecContext->ch_layout.nb_channels,
 			   h->frame->nb_samples,
 			   AV_SAMPLE_FMT_S16,
 			   1);
 
-	h->currentChannelCount = h->codecContext->channels;
+	h->currentChannelCount = h->codecContext->ch_layout.nb_channels;
 	h->currentSampleRate = h->codecContext->sample_rate;
-	h->currentChannelLayout = h->codecContext->channel_layout;
+	h->currentChannelLayout = h->codecContext->ch_layout.nb_channels;
 	return ret;
 }
 

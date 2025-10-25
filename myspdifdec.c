@@ -28,9 +28,12 @@
 #include <libavformat/avformat.h>
 #include <libavformat/spdif.h>
 #include "myspdif.h"
-#include <libavcodec/ac3.h>
+//#include <libavcodec/ac3.h>
 #include "libavcodec/adts_parser.h"
 #include "libavutil/bswap.h"
+
+#define NB_BLOCKS 6
+#define AC3_FRAME_SIZE (NB_BLOCKS * 256)
 
 static int spdif_get_offset_and_codec(AVFormatContext *s,
                                       enum IEC61937DataType data_type,
@@ -126,8 +129,9 @@ int my_spdif_read_packet(AVFormatContext *s, AVPacket *pkt,
     data_type = avio_rl16(pb);
     pkt_size_bits = avio_rl16(pb);
 
-    if (pkt_size_bits % 16)
-        avpriv_request_sample(s, "Packet not ending at a 16-bit boundary");
+    if (pkt_size_bits % 16){
+        printf("Packet not ending at a 16-bit boundary");
+    }
 
     ret = av_new_packet(pkt, FFALIGN(pkt_size_bits, 16) >> 3);
     if (ret)
@@ -136,7 +140,7 @@ int my_spdif_read_packet(AVFormatContext *s, AVPacket *pkt,
     pkt->pos = avio_tell(pb) - BURST_HEADER_SIZE;
 
     if (avio_read(pb, pkt->data, pkt->size) < pkt->size) {
-        av_free_packet(pkt);
+        av_packet_unref(pkt);
         return AVERROR_EOF;
     }
     my_spdif_bswap_buf16((uint16_t *)pkt->data, (uint16_t *)pkt->data, pkt->size >> 1);
@@ -144,7 +148,7 @@ int my_spdif_read_packet(AVFormatContext *s, AVPacket *pkt,
     ret = spdif_get_offset_and_codec(s, data_type, pkt->data,
                                      &offset, &codec_id);
     if (ret) {
-        av_free_packet(pkt);
+        av_packet_unref(pkt);
         return ret;
     }
 
@@ -155,20 +159,20 @@ int my_spdif_read_packet(AVFormatContext *s, AVPacket *pkt,
         /* first packet, create a stream */
         AVStream *st = avformat_new_stream(s, NULL);
         if (!st) {
-            av_free_packet(pkt);
+            av_packet_unref(pkt);
             return AVERROR(ENOMEM);
         }
-        st->codec->codec_type = AVMEDIA_TYPE_AUDIO;
-        st->codec->codec_id = codec_id;
-    } else if (codec_id != s->streams[0]->codec->codec_id) {
-        avpriv_report_missing_feature(s, "Codec change in IEC 61937");
+        st->codecpar->codec_type = AVMEDIA_TYPE_AUDIO;
+        st->codecpar->codec_id = codec_id;
+    } else if (codec_id != s->streams[0]->codecpar->codec_id) {
+        printf("Codec change in IEC 61937");
         return AVERROR_PATCHWELCOME;
     }
 
-    if (!s->bit_rate && s->streams[0]->codec->sample_rate)
+    if (!s->bit_rate && s->streams[0]->codecpar->sample_rate)
         /* stream bitrate matches 16-bit stereo PCM bitrate for currently
            supported codecs */
-        s->bit_rate = 2 * 16 * s->streams[0]->codec->sample_rate;
+        s->bit_rate = 2 * 16 * s->streams[0]->codecpar->sample_rate;
 
     return 0;
 }
