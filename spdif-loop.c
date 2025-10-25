@@ -88,7 +88,8 @@ alsa_reader(void *data, uint8_t *buf, int buf_size)
 		}
 
 		if (st->offset >= st->pkt.size)
-			av_free_packet(&st->pkt);
+//			av_free_packet(&st->pkt);
+			av_packet_unref(&st->pkt);
 	}
 
 	return (read_size);
@@ -100,18 +101,26 @@ main(int argc, char **argv)
 	int opt_test = 0;
 	char *alsa_dev_name = NULL;
 	char *out_driver_name = NULL;
+	char *out_driver_name_2ch = NULL;
 	char *out_dev_name = NULL;
+	char *out_dev_name_2ch = NULL;
 	int opt;
-	for (opt = 0; (opt = getopt(argc, argv, "d:hi:o:tv")) != -1;) {
+	for (opt = 0; (opt = getopt(argc, argv, "d:e:hi:o:p:tv")) != -1;) {
 		switch (opt) {
 		case 'd':
 			out_driver_name = optarg;
+			break;
+		case 'e':
+			out_driver_name_2ch = optarg;
 			break;
 		case 'i':
 			alsa_dev_name = optarg;
 			break;
 		case 'o':
 			out_dev_name = optarg;
+			break;
+		case 'p':
+			out_dev_name_2ch = optarg;
 			break;
 		case 't':
 			opt_test = 1;
@@ -135,10 +144,17 @@ main(int argc, char **argv)
 		usage();
 	}
 
-	av_register_all();
-	avcodec_register_all();
+//	av_register_all();
+//	avcodec_register_all();
 	avdevice_register_all();
 	ao_initialize();
+
+	if(!out_dev_name_2ch){
+		out_dev_name_2ch = out_dev_name;
+	}
+	if(!out_driver_name_2ch){
+		out_driver_name_2ch = out_driver_name;
+	}
 
 
 	ao_option *out_dev_opts = NULL;
@@ -147,13 +163,31 @@ main(int argc, char **argv)
 			errx(1, "cannot set output device `%s'", out_dev_name);
 	}
 
+	ao_option *out_dev_opts_2ch = NULL;
+	if (out_dev_name_2ch) {
+		if (!ao_append_option(&out_dev_opts_2ch, "dev", out_dev_name_2ch))
+			errx(1, "cannot set 2ch output device `%s'", out_dev_name_2ch);
+	}
 
 	int out_driver_id = ao_default_driver_id();
-	if (out_driver_name)
+	if (out_driver_name){
 		out_driver_id = ao_driver_id(out_driver_name);
-	if (out_driver_id < 0)
+	}
+	if (out_driver_id < 0){
 		errx(1, "invalid output driver `%s'",
 		     out_driver_name ? out_driver_name : "default");
+	}
+
+	int out_driver_id_2ch = ao_default_driver_id();
+	if (out_driver_name_2ch && strcmp(out_driver_name, out_driver_name_2ch)!=0){
+		out_driver_id_2ch = ao_driver_id(out_driver_name_2ch);
+	}else{
+		out_driver_id_2ch = out_driver_id;
+	}
+	if (out_driver_id_2ch < 0){
+		errx(1, "invalid output driver `%s'",
+		     out_driver_name_2ch ? out_driver_name_2ch : "default");
+	}
 
 	if (opt_test) {
 		exit(test_audio_out(out_driver_id, out_dev_opts));
@@ -162,23 +196,26 @@ main(int argc, char **argv)
 
 
 	AVInputFormat *alsa_fmt = av_find_input_format("alsa");
-	if (!alsa_fmt)
+	if (!alsa_fmt){
 		errx(1, "cannot find alsa input driver");
+	}
 
 	AVInputFormat *spdif_fmt = av_find_input_format("spdif");
-	if (!spdif_fmt)
+	if (!spdif_fmt){
 		errx(1, "cannot find S/PDIF demux driver");
+	}
 
 	const int alsa_buf_size = IO_BUFFER_SIZE;
 	unsigned char *alsa_buf = av_malloc(alsa_buf_size);
-	if (!alsa_buf)
+	if (!alsa_buf){
 		errx(1, "cannot allocate input buffer");
+	}
 
 	AVFormatContext *spdif_ctx = NULL;
 	AVFormatContext *alsa_ctx = NULL;
 	ao_device *out_dev = NULL;
 
-    char *resamples = malloc(1*1024*1024);
+	char *resamples = malloc(1*1024*1024);
 
 	if (0) {
 retry:
@@ -195,11 +232,13 @@ retry:
 	}
 
 	spdif_ctx = avformat_alloc_context();
-	if (!spdif_ctx)
+	if (!spdif_ctx){
 		errx(1, "cannot allocate S/PDIF context");
+	}
 
-	if (avformat_open_input(&alsa_ctx, alsa_dev_name, alsa_fmt, NULL) != 0)
+	if (avformat_open_input(&alsa_ctx, alsa_dev_name, alsa_fmt, NULL) != 0){
 		errx(1, "cannot open alsa input");
+	}
 
 	struct alsa_read_state read_state = {
 		.ctx = alsa_ctx,
@@ -207,26 +246,28 @@ retry:
 
 	av_init_packet(&read_state.pkt);
 	AVIOContext * avio_ctx = avio_alloc_context(alsa_buf, alsa_buf_size, 0, &read_state, alsa_reader, NULL, NULL);
-    if (!avio_ctx) {
-    	errx(1, "cannot open avio_alloc_context");
-    }
+	if (!avio_ctx) {
+		errx(1, "cannot open avio_alloc_context");
+	}
 
 	spdif_ctx->pb = avio_alloc_context(alsa_buf, alsa_buf_size, 0, &read_state, alsa_reader, NULL, NULL);
-	if (!spdif_ctx->pb)
+	if (!spdif_ctx->pb){
 		errx(1, "cannot set up alsa reader");
+	}
 
-	if (avformat_open_input(&spdif_ctx, "internal", spdif_fmt, NULL) != 0)
+	if (avformat_open_input(&spdif_ctx, "internal", spdif_fmt, NULL) != 0){
 		errx(1, "cannot open S/PDIF input");
+	}
 
 	av_dump_format(alsa_ctx, 0, alsa_dev_name, 0);
 
 	AVPacket pkt = {.size = 0, .data = NULL};
 	av_init_packet(&pkt);
 
-    uint32_t howmuch = 0;
+	uint32_t howmuch = 0;
 
-    CodecHandler codecHanlder;
-    CodecHandler_init(&codecHanlder);
+	CodecHandler codecHanlder;
+	CodecHandler_init(&codecHanlder);
 	printf("start loop\n");
 	while (1) {
 		int r = my_spdif_read_packet(spdif_ctx, &pkt, (uint8_t*)resamples, IO_BUFFER_SIZE, &howmuch);
@@ -265,23 +306,33 @@ retry:
 			codecHanlder.currentChannelCount = 2;
 			codecHanlder.currentSampleRate = 48000;
 			codecHanlder.currentChannelLayout = 0;
+
 		}
 
 		if (!out_dev) {
-			out_dev = open_output(out_driver_id,
+			if(codecHanlder.currentChannelCount == 2){
+				out_dev = open_output(out_driver_id_2ch,
+					      out_dev_opts_2ch,
+					      av_get_bytes_per_sample(AV_SAMPLE_FMT_S16) * 8,
+					      codecHanlder.currentChannelCount,
+					      codecHanlder.currentSampleRate);
+			}else{
+				out_dev = open_output(out_driver_id,
 					      out_dev_opts,
 					      av_get_bytes_per_sample(AV_SAMPLE_FMT_S16) * 8,
 					      codecHanlder.currentChannelCount,
 					      codecHanlder.currentSampleRate);
-			if (!out_dev)
+			}
+			if (!out_dev){
 				errx(1, "cannot open audio output");
+			}
 		}
 		//found wav
 		if(!ao_play(out_dev, resamples, howmuch)){
 			printf("Could not play audio to output device...");
 			goto retry;
 		}
-                 av_packet_unref(&pkt); 
+		av_packet_unref(&pkt);
 	}
 	CodecHandler_deinit(&codecHanlder);
 	return (0);
