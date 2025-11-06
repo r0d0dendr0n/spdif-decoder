@@ -40,6 +40,13 @@ usage(void)
 	exit(1);
 }
 
+static void set_dolby_mark(int x) {
+    FILE *f = fopen("/tmp/dolby_mark", "w");
+    if (!f) return;
+    fprintf(f, "%d", x);
+    fclose(f);
+}
+
 static int
 alsa_reader(void *data, uint8_t *buf, int buf_size)
 {
@@ -286,6 +293,7 @@ retry:
 					out_dev = NULL;
 				}
 				printf("Detected S/PDIF codec %s\n", avcodec_get_name(codecHanlder.currentCodecID));
+				set_dolby_mark(1);
 			}
 			if(pkt.size != 0){
 				printf("still some bytes left %d\n",pkt.size);
@@ -296,6 +304,7 @@ retry:
 				codecHanlder.currentSampleRate != 48000){
 
 				printf("Detected S/PDIF uncompressed audio\n");
+				set_dolby_mark(0);
 
 				if (out_dev) {
 					ao_close(out_dev);
