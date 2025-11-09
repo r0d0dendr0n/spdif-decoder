@@ -45,9 +45,15 @@ static int spdif_get_offset_and_codec(AVFormatContext *s,
     int ret;
 
     switch (data_type & 0xff) {
+    case IEC61937_EAC3:
+        *offset = AC3_FRAME_SIZE << 2;
+        *codec = AV_CODEC_ID_EAC3;
+        break;
     case IEC61937_AC3:
         *offset = AC3_FRAME_SIZE << 2;
-        *codec = AV_CODEC_ID_AC3;
+        // EAC3 is backward compatible to AC3. Maybe ffmpeg decoder is better?
+        //*codec = AV_CODEC_ID_AC3;
+        *codec = AV_CODEC_ID_EAC3;
         break;
     case IEC61937_MPEG1_LAYER1:
         *offset = spdif_mpeg_pkt_offset[1][0];
