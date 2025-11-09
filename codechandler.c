@@ -93,7 +93,7 @@ int CodecHandler_decodeCodec(CodecHandler * h, AVPacket * pkt,
 
 int CodecHandler_closeCodec(CodecHandler * handler){
 	if(handler->codecContext != NULL){
-		avcodec_close(handler->codecContext);
+		//avcodec_close(handler->codecContext); // deprecated?
 		avcodec_free_context(&handler->codecContext);
 	}
 	handler->codec = NULL;
