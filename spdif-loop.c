@@ -272,6 +272,8 @@ retry:
 	av_init_packet(&pkt);
 
 	uint32_t howmuch = 0;
+	int skipCnt = 0;
+	int skipLimit = 32;
 
 	CodecHandler codecHanlder;
 	CodecHandler_init(&codecHanlder);
@@ -294,6 +296,7 @@ retry:
 				}
 				printf("Detected S/PDIF codec %s\n", avcodec_get_name(codecHanlder.currentCodecID));
 				set_dolby_mark(1);
+				skipCnt = skipLimit;
 			}
 			if(pkt.size != 0){
 				printf("still some bytes left %d\n",pkt.size);
@@ -305,6 +308,7 @@ retry:
 
 				printf("Detected S/PDIF uncompressed audio\n");
 				set_dolby_mark(0);
+				skipCnt = skipLimit;
 
 				if (out_dev) {
 					ao_close(out_dev);
@@ -337,9 +341,16 @@ retry:
 			}
 		}
 		//found wav
-		if(!ao_play(out_dev, resamples, howmuch)){
-			printf("Could not play audio to output device...");
-			goto retry;
+		if(skipCnt==0){
+			if(!ao_play(out_dev, resamples, howmuch)){
+				printf("Could not play audio to output device...");
+				goto retry;
+			}
+		}else{
+			if(skipCnt==skipLimit){ printf("Skipping: "); }
+			printf(".");
+			skipCnt--;
+			if(skipCnt==0){ printf("\n"); }
 		}
 		av_packet_unref(&pkt);
 	}
