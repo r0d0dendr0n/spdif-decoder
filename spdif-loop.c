@@ -20,7 +20,8 @@
 
 //#define DEBUG
 //#define IO_BUFFER_SIZE	SPDIF_MAX_OFFSET// ((8+1792+4344)*1)
-#define IO_BUFFER_SIZE	((8+1792+4344)*1)
+//#define IO_BUFFER_SIZE	((16384))
+#define IO_BUFFER_SIZE		((8+1792+4344)*1)
 
 
 struct alsa_read_state {
@@ -106,13 +107,15 @@ int
 main(int argc, char **argv)
 {
 	int opt_test = 0;
-	char *alsa_dev_name = NULL;
+	char *in_dev_name = NULL;
+	char *in_driver_name = NULL;
 	char *out_driver_name = NULL;
 	char *out_driver_name_2ch = NULL;
 	char *out_dev_name = NULL;
 	char *out_dev_name_2ch = NULL;
 	int opt;
-	for (opt = 0; (opt = getopt(argc, argv, "d:e:hi:o:p:tv")) != -1;) {
+	for (opt = 0; (opt = getopt(argc, argv, "d:e:f:hi:o:p:tv")) != -1;) {
+
 		switch (opt) {
 		case 'd':
 			out_driver_name = optarg;
@@ -120,8 +123,11 @@ main(int argc, char **argv)
 		case 'e':
 			out_driver_name_2ch = optarg;
 			break;
+		case 'f':
+			in_driver_name = optarg;
+			break;
 		case 'i':
-			alsa_dev_name = optarg;
+			in_dev_name = optarg;
 			break;
 		case 'o':
 			out_dev_name = optarg;
@@ -146,7 +152,7 @@ main(int argc, char **argv)
 	if (argc != 0)
 		usage();
 
-	if (!(opt_test ^ !!alsa_dev_name)) {
+	if (!(opt_test ^ !!in_dev_name)) {
 		fprintf(stderr, "please specify either input device or testing mode\n\n");
 		usage();
 	}
@@ -156,6 +162,9 @@ main(int argc, char **argv)
 	avdevice_register_all();
 	ao_initialize();
 
+	if(!in_driver_name){
+		in_driver_name = "alsa";
+	}
 	if(!out_dev_name_2ch){
 		out_dev_name_2ch = out_dev_name;
 	}
@@ -202,9 +211,9 @@ main(int argc, char **argv)
 	}
 
 
-	AVInputFormat *alsa_fmt = av_find_input_format("alsa");
-	if (!alsa_fmt){
-		errx(1, "cannot find alsa input driver");
+	AVInputFormat *in_fmt = av_find_input_format(in_driver_name);
+	if (!in_fmt){
+		errx(1, "cannot find selected input driver");
 	}
 
 	AVInputFormat *spdif_fmt = av_find_input_format("spdif");
@@ -243,7 +252,7 @@ retry:
 		errx(1, "cannot allocate S/PDIF context");
 	}
 
-	if (avformat_open_input(&alsa_ctx, alsa_dev_name, alsa_fmt, NULL) != 0){
+	if (avformat_open_input(&alsa_ctx, in_dev_name, in_fmt, NULL) != 0){
 		errx(1, "cannot open alsa input");
 	}
 
@@ -266,7 +275,7 @@ retry:
 		errx(1, "cannot open S/PDIF input");
 	}
 
-	av_dump_format(alsa_ctx, 0, alsa_dev_name, 0);
+	av_dump_format(alsa_ctx, 0, in_dev_name, 0);
 
 	AVPacket pkt = {.size = 0, .data = NULL};
 	av_init_packet(&pkt);
@@ -341,17 +350,17 @@ retry:
 			}
 		}
 		//found wav
-		if(skipCnt==0){
+		// if(skipCnt==0){
 			if(!ao_play(out_dev, resamples, howmuch)){
 				printf("Could not play audio to output device...");
 				goto retry;
 			}
-		}else{
-			if(skipCnt==skipLimit){ printf("Skipping: "); }
-			printf(".");
-			skipCnt--;
-			if(skipCnt==0){ printf("\n"); }
-		}
+		// }else{
+		// 	if(skipCnt==skipLimit){ printf("Skipping: "); }
+		// 	printf(".");
+		// 	skipCnt--;
+		// 	if(skipCnt==0){ printf("\n"); }
+		// }
 		av_packet_unref(&pkt);
 	}
 	CodecHandler_deinit(&codecHanlder);
