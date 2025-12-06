@@ -12,6 +12,7 @@ add_executable (spdif-decoder
 
 #SET(FFMPEG ${CMAKE_CURRENT_SOURCE_DIR}/../ffmpeg-4.3.1)
 #SET(FFMPEG /usr/local/ffmpeg)
+SET(FFMPEG /usr/src/ffmpeg/ffmpeg-git)
 #SET(FFMPEG /usr/src/ffmpeg/ffmpeg-4.3.9)
 
 target_include_directories (spdif-decoder
@@ -29,19 +30,19 @@ FIND_LIBRARY(libswresample swresample ${FFMPEG}/libswresample)
 FIND_LIBRARY(libavfilter avfilter ${FFMPEG}/libavfilter)
 
 TARGET_LINK_LIBRARIES(spdif-decoder 
-    ${libavcodec}
-    ${libavformat}
-    ${libavdevice}
-    ${libavutil}
-    ${libswresample}
-    ${libavfilter}
+#    ${libavcodec}
+#    ${libavformat}
+#    ${libavdevice}
+#    ${libavutil}
+#    ${libswresample}
+#    ${libavfilter}
 
-#    ${FFMPEG}/libavcodec/libavcodec.so
-#    ${FFMPEG}/libavformat/libavformat.so
-#    ${FFMPEG}/libavdevice/libavdevice.so
-#    ${FFMPEG}/libavutil/libavutil.so
-#    ${FFMPEG}/libswresample/libswresample.so
-#    ${FFMPEG}/libavfilter/libavfilter.so
+    ${FFMPEG}/libavcodec/libavcodec.so
+    ${FFMPEG}/libavformat/libavformat.so
+    ${FFMPEG}/libavdevice/libavdevice.so
+    ${FFMPEG}/libavutil/libavutil.so
+    ${FFMPEG}/libswresample/libswresample.so
+    ${FFMPEG}/libavfilter/libavfilter.so
 
     ao
     m
