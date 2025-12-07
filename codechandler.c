@@ -71,7 +71,7 @@ int CodecHandler_decodeCodec(CodecHandler * h, AVPacket * pkt,
 	pkt->size -= processed_len;
 	if(h->currentChannelCount != h->codecContext->ch_layout.nb_channels
 			|| h->currentSampleRate != h->codecContext->sample_rate
-			|| h->currentChannelLayout != h->codecContext->ch_layout.nb_channels){
+			|| h->currentChannelLayout != h->codecContext->ch_layout.u.mask){
 		resample_loadFromCodec(h->swr, h->codecContext);
 		printf("c: %d, s: %d\n",h->codecContext->ch_layout.nb_channels, h->codecContext->sample_rate);
 		ret = 1;
@@ -86,7 +86,7 @@ int CodecHandler_decodeCodec(CodecHandler * h, AVPacket * pkt,
 
 	h->currentChannelCount = h->codecContext->ch_layout.nb_channels;
 	h->currentSampleRate = h->codecContext->sample_rate;
-	h->currentChannelLayout = h->codecContext->ch_layout.nb_channels;
+	h->currentChannelLayout = h->codecContext->ch_layout.u.mask;
 	return ret;
 }
 

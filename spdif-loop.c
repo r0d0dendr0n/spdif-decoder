@@ -284,26 +284,26 @@ retry:
 	int skipCnt = 0;
 	int skipLimit = 32;
 
-	CodecHandler codecHanlder;
-	CodecHandler_init(&codecHanlder);
+	CodecHandler codecHandler;
+	CodecHandler_init(&codecHandler);
 	printf("start loop\n");
 	while (1) {
 		int r = my_spdif_read_packet(spdif_ctx, &pkt, (uint8_t*)resamples, IO_BUFFER_SIZE, &howmuch);
 
 		if(r == 0){
-			if(CodecHandler_loadCodec(&codecHanlder, spdif_ctx)!=0){
-				printf("Could not load codec %s.\n", avcodec_get_name(codecHanlder.currentCodecID));
+			if(CodecHandler_loadCodec(&codecHandler, spdif_ctx)!=0){
+				printf("Could not load codec %s.\n", avcodec_get_name(codecHandler.currentCodecID));
 				goto retry;
 			}
 
-			if(CodecHandler_decodeCodec(&codecHanlder,&pkt,(uint8_t*)resamples, &howmuch) == 1){
+			if(CodecHandler_decodeCodec(&codecHandler,&pkt,(uint8_t*)resamples, &howmuch) == 1){
 				//channel count has changed
 				//close out_dev
 				if (out_dev) {
 					ao_close(out_dev);
 					out_dev = NULL;
 				}
-				printf("Detected S/PDIF codec %s\n", avcodec_get_name(codecHanlder.currentCodecID));
+				printf("Detected S/PDIF codec %s\n", avcodec_get_name(codecHandler.currentCodecID));
 				set_dolby_mark(1);
 				skipCnt = skipLimit;
 			}
@@ -311,9 +311,9 @@ retry:
 				printf("still some bytes left %d\n",pkt.size);
 			}
 		} else {
-			if(codecHanlder.currentCodecID != AV_CODEC_ID_NONE ||
-				codecHanlder.currentChannelCount != 2 ||
-				codecHanlder.currentSampleRate != 48000){
+			if(codecHandler.currentCodecID != AV_CODEC_ID_NONE ||
+				codecHandler.currentChannelCount != 2 ||
+				codecHandler.currentSampleRate != 48000){
 
 				printf("Detected S/PDIF uncompressed audio\n");
 				set_dolby_mark(0);
@@ -324,26 +324,26 @@ retry:
 					out_dev = NULL;
 				}
 			}
-			codecHanlder.currentCodecID = AV_CODEC_ID_NONE;
-			codecHanlder.currentChannelCount = 2;
-			codecHanlder.currentSampleRate = 48000;
-			codecHanlder.currentChannelLayout = 0;
+			codecHandler.currentCodecID = AV_CODEC_ID_NONE;
+			codecHandler.currentChannelCount = 2;
+			codecHandler.currentSampleRate = 48000;
+			codecHandler.currentChannelLayout = 0;
 
 		}
 
 		if (!out_dev) {
-			if(codecHanlder.currentChannelCount == 2){
+			if(codecHandler.currentChannelCount == 2){
 				out_dev = open_output(out_driver_id_2ch,
 					      out_dev_opts_2ch,
 					      av_get_bytes_per_sample(AV_SAMPLE_FMT_S16) * 8,
-					      codecHanlder.currentChannelCount,
-					      codecHanlder.currentSampleRate);
+					      codecHandler.currentChannelCount,
+					      codecHandler.currentSampleRate);
 			}else{
 				out_dev = open_output(out_driver_id,
 					      out_dev_opts,
 					      av_get_bytes_per_sample(AV_SAMPLE_FMT_S16) * 8,
-					      codecHanlder.currentChannelCount,
-					      codecHanlder.currentSampleRate);
+					      codecHandler.currentChannelCount,
+					      codecHandler.currentSampleRate);
 			}
 			if (!out_dev){
 				errx(1, "cannot open audio output");
@@ -363,6 +363,6 @@ retry:
 		// }
 		av_packet_unref(&pkt);
 	}
-	CodecHandler_deinit(&codecHanlder);
+	CodecHandler_deinit(&codecHandler);
 	return (0);
 }
