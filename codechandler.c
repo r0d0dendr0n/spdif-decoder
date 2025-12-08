@@ -105,8 +105,11 @@ int CodecHandler_decodeCodec(CodecHandler * h, AVPacket * pkt,
 		errx(1, "cannot decode input");
 	}
 
-	h->codecContext->ch_layout= h->frame->ch_layout;
-	h->codecContext->sample_rate = h->frame->sample_rate;
+	// In new API we should not get these from codecContext, but rather from a decoded frame.
+	if(!h->codecContext->sample_rate && h->frame->sample_rate){
+		h->codecContext->ch_layout= h->frame->ch_layout;
+		h->codecContext->sample_rate = h->frame->sample_rate;
+	}
 
 	int ret = 0;
 
