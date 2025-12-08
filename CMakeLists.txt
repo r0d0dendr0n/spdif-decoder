@@ -1,8 +1,8 @@
 cmake_minimum_required (VERSION 3.5)
 project (spdif-decoder)
 
-add_executable (spdif-decoder 
-    codechandler.c 
+add_executable (spdif-decoder
+    codechandler.c
     helper.c
     myspdif.c
     myspdifdec.c
@@ -15,9 +15,8 @@ add_executable (spdif-decoder
 SET(FFMPEG /usr/src/ffmpeg/ffmpeg-git)
 #SET(FFMPEG /usr/src/ffmpeg/ffmpeg-4.3.9)
 
-target_include_directories (spdif-decoder
-    PUBLIC ${FFMPEG}
-)
+target_include_directories (spdif-decoder PRIVATE ${FFMPEG})
+#target_include_directories (spdif-decoder PUBLIC ${FFMPEG}/include)
 
 target_link_directories(spdif-decoder PUBLIC ${FFMPEG}/lib)
 
@@ -43,6 +42,13 @@ TARGET_LINK_LIBRARIES(spdif-decoder
     ${FFMPEG}/libavutil/libavutil.so
     ${FFMPEG}/libswresample/libswresample.so
     ${FFMPEG}/libavfilter/libavfilter.so
+
+#    ${FFMPEG}/lib/libavcodec.so
+#    ${FFMPEG}/lib/libavformat.so
+#    ${FFMPEG}/lib/libavdevice.so
+#    ${FFMPEG}/lib/libavutil.so
+#    ${FFMPEG}/lib/libswresample.so
+#    ${FFMPEG}/lib/libavfilter.so
 
     ao
     m

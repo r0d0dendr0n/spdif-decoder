@@ -64,7 +64,7 @@ static const uint16_t spdif_mpeg_pkt_offset[2][3] = {
 
 void my_spdif_bswap_buf16(uint16_t *dst, const uint16_t *src, int w);
 int my_spdif_read_packet(AVFormatContext *s, AVPacket *pkt,
-		uint8_t * garbagebuffer, int garbagebuffersize, int * garbagebufferfilled);
+                uint8_t * garbagebuffer, unsigned int garbagebuffersize, unsigned int * garbagebufferfilled);
 int my_spdif_probe(const uint8_t *p_buf, int buf_size, enum AVCodecID *codec);
 
 

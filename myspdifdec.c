@@ -106,7 +106,7 @@ static int spdif_get_offset_and_codec(AVFormatContext *s,
 }
 
 int my_spdif_read_packet(AVFormatContext *s, AVPacket *pkt,
-		uint8_t * garbagebuffer, int garbagebuffersize, int * garbagebufferfilled)
+                uint8_t * garbagebuffer, unsigned int garbagebuffersize, unsigned int * garbagebufferfilled)
 {
     AVIOContext *pb = s->pb;
     enum IEC61937DataType data_type;
@@ -152,6 +152,7 @@ int my_spdif_read_packet(AVFormatContext *s, AVPacket *pkt,
     ret = spdif_get_offset_and_codec(s, data_type, pkt->data,
                                      &offset, &codec_id);
     if (ret) {
+        fprintf(stderr, "Unable to spdif_get_offset_and_codec\n");
         av_packet_unref(pkt);
         return ret;
     }
@@ -173,10 +174,11 @@ int my_spdif_read_packet(AVFormatContext *s, AVPacket *pkt,
         return AVERROR_PATCHWELCOME;
     }
 
-    if (!s->bit_rate && s->streams[0]->codecpar->sample_rate)
+    if (!s->bit_rate && s->streams[0]->codecpar->sample_rate){
         /* stream bitrate matches 16-bit stereo PCM bitrate for currently
            supported codecs */
         s->bit_rate = 2 * 16 * s->streams[0]->codecpar->sample_rate;
+    }
 
     return 0;
 }

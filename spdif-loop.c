@@ -1,6 +1,5 @@
 #define _GNU_SOURCE
 
-#include <math.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <err.h>
@@ -13,7 +12,6 @@
 #include <libavformat/avio.h>
 #include <libavformat/spdif.h>
 
-#include "resample.h"
 #include "helper.h"
 #include "myspdif.h"
 #include "codechandler.h"
@@ -59,8 +57,9 @@ alsa_reader(void *data, uint8_t *buf, int buf_size)
 			int ret = av_read_frame(st->ctx, &st->pkt);
 			st->offset = 0;
 
-			if (ret != 0)
+			if (ret != 0){
 				return (ret);
+			}
 		}
 
 		int pkt_left = st->pkt.size - st->offset;
@@ -95,9 +94,10 @@ alsa_reader(void *data, uint8_t *buf, int buf_size)
 			}
 		}
 
-		if (st->offset >= st->pkt.size)
+		if (st->offset >= st->pkt.size){
 //			av_free_packet(&st->pkt);
 			av_packet_unref(&st->pkt);
+		}
 	}
 
 	return (read_size);
@@ -228,17 +228,19 @@ main(int argc, char **argv)
 	}
 
 	AVFormatContext *spdif_ctx = NULL;
-	AVFormatContext *alsa_ctx = NULL;
+	AVFormatContext *input_ctx = NULL;
 	ao_device *out_dev = NULL;
 
 	char *resamples = malloc(1*1024*1024);
 
 	if (0) {
 retry:
-		if (spdif_ctx)
+		if (spdif_ctx){
 			avformat_close_input(&spdif_ctx);
-		if (alsa_ctx)
-			avformat_close_input(&alsa_ctx);
+		}
+		if (input_ctx){
+			avformat_close_input(&input_ctx);
+		}
 		if (out_dev) {
 			ao_close(out_dev);
 			out_dev = NULL;
@@ -252,15 +254,16 @@ retry:
 		errx(1, "cannot allocate S/PDIF context");
 	}
 
-	if (avformat_open_input(&alsa_ctx, in_dev_name, in_fmt, NULL) != 0){
+	if (avformat_open_input(&input_ctx, in_dev_name, in_fmt, NULL) != 0){
 		errx(1, "cannot open alsa input");
 	}
 
 	struct alsa_read_state read_state = {
-		.ctx = alsa_ctx,
+		.ctx = input_ctx,
 	};
 
-	av_init_packet(&read_state.pkt);
+	//av_init_packet(&read_state.pkt);
+	av_new_packet(&read_state.pkt, 0);
 	AVIOContext * avio_ctx = avio_alloc_context(alsa_buf, alsa_buf_size, 0, &read_state, alsa_reader, NULL, NULL);
 	if (!avio_ctx) {
 		errx(1, "cannot open avio_alloc_context");
@@ -275,13 +278,14 @@ retry:
 		errx(1, "cannot open S/PDIF input");
 	}
 
-	av_dump_format(alsa_ctx, 0, in_dev_name, 0);
+	av_dump_format(input_ctx, 0, in_dev_name, 0);
 
 	AVPacket pkt = {.size = 0, .data = NULL};
-	av_init_packet(&pkt);
+	av_new_packet(&pkt, 0);
+	// av_init_packet(&pkt);
 
 	uint32_t howmuch = 0;
-	int skipCnt = 0;
+	// int skipCnt = 0;
 	int skipLimit = 32;
 
 	CodecHandler codecHandler;
@@ -305,7 +309,7 @@ retry:
 				}
 				printf("Detected S/PDIF codec %s\n", avcodec_get_name(codecHandler.currentCodecID));
 				set_dolby_mark(1);
-				skipCnt = skipLimit;
+				// skipCnt = skipLimit;
 			}
 			if(pkt.size != 0){
 				printf("still some bytes left %d\n",pkt.size);
@@ -317,7 +321,7 @@ retry:
 
 				printf("Detected S/PDIF uncompressed audio\n");
 				set_dolby_mark(0);
-				skipCnt = skipLimit;
+				// skipCnt = skipLimit;
 
 				if (out_dev) {
 					ao_close(out_dev);
